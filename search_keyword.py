@@ -4,6 +4,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+import pandas as pd
+
 driver = webdriver.Chrome()
 driver.get("https://csrankings.org/")
 title = driver.title
@@ -11,7 +13,7 @@ title = driver.title
 region = "us"
 publication_fromyear = "2021"
 target_univ = "California Institute of Technology"
-domain = "robotics"
+domains = ["robotics", "vision", "graph"]
 
 wait = WebDriverWait(driver, 10) # Wait up to 10 seconds
 
@@ -38,7 +40,13 @@ try:
     select.select_by_value(publication_fromyear)
     
     # Check domain button
-    driver.find_element("xpath", f"//input[@id='{domain}']").click()
+    for domain in domains:
+        driver.find_element("xpath", f"//input[@id='{domain}']").click()
+
+    try:
+        WebDriverWait(driver, 3).until(EC.element_to_be_selected(driver.find_element("xpath", "//a[@id='all_areas_off']")))
+    except:
+        pass
 
     # Find professors' google scholar
     wait.until(
@@ -68,14 +76,25 @@ try:
     except:
         pass
 
-    google_scholar_a_elements = target_univ_table_element.find_elements("xpath", ".//a[contains(@href,'scholar.google.com')]")
-    for id, google_scholar_a_element in enumerate(google_scholar_a_elements):
-        print(id, google_scholar_a_element.get_attribute("href"))
+    # google_scholar_a_elements = target_univ_table_element.find_elements("xpath", ".//a[contains(@href,'scholar.google.com')]")
+    # for id, google_scholar_a_element in enumerate(google_scholar_a_elements):
+    #     print(id, google_scholar_a_element.get_attribute("href"))
         
-    all_univ_scholars_elements = target_univ_table_element.find_elements("xpath", ".//td/small/a[1]")
+    all_univ_scholars_elements = target_univ_table_element.find_elements("xpath", ".//td/small[a[1]]")
     all_univ_scholars_elements = all_univ_scholars_elements[::2]
-    for scholar_element in all_univ_scholars_elements:    
-        print(scholar_element.text)
+    
+    scholar_names = []
+    google_scholar_urls = []
+    for scholar_element in all_univ_scholars_elements:
+        scholar_name_element = scholar_element.find_element("xpath", ".//a[1]")
+        scholar_names.append(scholar_name_element.text)
+        try:
+            google_scholar_a_element = scholar_element.find_element("xpath", ".//a[contains(@href,'scholar.google.com')]")
+            google_scholar_urls.append(google_scholar_a_element.get_attribute("href"))
+        except:
+            google_scholar_urls.append("")
+
+    pd.DataFrame({"Name": scholar_names, "Google scholar URL": google_scholar_urls}).to_csv("individual.csv")
     
     print(target_univ_table_element.text)
     
